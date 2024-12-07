@@ -1,3 +1,10 @@
+# Operating systems
+.DS_Store
+
+# IDEs
+.vscode
+.idea
+
 # Prerequisites
 *.d
 
