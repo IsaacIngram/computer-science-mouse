@@ -1,6 +1,10 @@
 # Operating systems
 .DS_Store
 
+# Build
+/trap/build
+/trap/cmake-build-debug
+
 # IDEs
 .vscode
 .idea
