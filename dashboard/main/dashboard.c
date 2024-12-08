@@ -2,9 +2,14 @@
 #include "driver/gpio.h"
 #include "esp_wifi.h"
 #include "esp_now.h"
+#include "nvs_flash.h"
+#include "esp_system.h"
+#include "esp_log.h"
 
 #define TRAP_1_CONNECTED_PIN 27
 #define TRAP_1_HAMMER_STATUS_PIN 33
+#define TRAP_2_CONNECTED_PIN 0
+#define TRAP_2_HAMMER_STATUS_PIN 0
 #define BUILT_IN_LED_PIN 2
 
 void configure_pins() {
@@ -26,29 +31,41 @@ void esp_now_recv_cb(const esp_now_recv_info_t *info, const uint8_t *data, int d
     }
     if(data_len == sizeof(bool)) {
         bool hammer_down = *(bool *)data;
-        if(hammer_down) {
-            gpio_set_level(TRAP_1_HAMMER_STATUS_PIN, 1);
-        } else {
-            gpio_set_level(TRAP_1_HAMMER_STATUS_PIN, 0);
-        }
+        gpio_set_level(TRAP_1_HAMMER_STATUS_PIN, hammer_down ? 1 : 0);
     }
 }
 
 
 void init_esp_now() {
-    esp_netif_init();
-    esp_event_loop_create_default();
-    esp_wifi_init(&(wifi_init_config_t){});
-    esp_wifi_set_mode(WIFI_MODE_STA);
-    esp_wifi_start();
-    esp_now_init();
-    esp_now_register_recv_cb(esp_now_recv_cb);
+    esp_err_t ret;
+
+    // Initialize NVS
+    ret = nvs_flash_init();
+    while (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        nvs_flash_erase();
+        ret = nvs_flash_init();
+    }
+    printf("Flash initialized");
+
+    // Initialize Wi-Fi
+    ESP_ERROR_CHECK(esp_netif_init());
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+    ESP_ERROR_CHECK(esp_wifi_start());
+    printf("WiFi initialized\n");
+
+    // Initialize ESP-NOW
+    ESP_ERROR_CHECK(esp_now_init());
+
+    // Register callback for receiving ESP-NOW data
+    ESP_ERROR_CHECK(esp_now_register_recv_cb(esp_now_recv_cb));
 }
 
 
 void app_main(void)
 {
-    init_esp_now();
-    configure_pins();
-    esp_now_register_recv_cb(esp_now_recv_cb);
+    configure_pins();    // Set up GPIO
+    init_esp_now();      // Initialize ESP-NOW
 }
