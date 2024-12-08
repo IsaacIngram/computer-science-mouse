@@ -4,6 +4,8 @@
 # Build
 /trap/build
 /trap/cmake-build-debug
+/dashboard/build
+/dashboard/cmake-build-debug
 
 # IDEs
 .vscode
