@@ -5,12 +5,17 @@
 #include "nvs_flash.h"
 #include "esp_system.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 
 #define TRAP_1_CONNECTED_PIN 27
 #define TRAP_1_HAMMER_STATUS_PIN 33
 #define TRAP_2_CONNECTED_PIN 0
 #define TRAP_2_HAMMER_STATUS_PIN 0
 #define BUILT_IN_LED_PIN 2
+
+#define CONNECTION_TIMEOUT_MICRO_S 1000000
+
+int64_t trap_1_last_comm_micro_s = 0;
 
 void configure_pins() {
     gpio_config_t led_conf = {
@@ -30,8 +35,19 @@ void esp_now_recv_cb(const esp_now_recv_info_t *info, const uint8_t *data, int d
         return;
     }
     if(data_len == sizeof(bool)) {
+        gpio_set_level(TRAP_1_CONNECTED_PIN, 1);
         bool hammer_down = *(bool *)data;
         gpio_set_level(TRAP_1_HAMMER_STATUS_PIN, hammer_down ? 1 : 0);
+        trap_1_last_comm_micro_s = esp_timer_get_time();
+    }
+}
+
+
+_Noreturn void connection_watchdog_task(void *pvParameters) {
+    while(1) {
+        if(esp_timer_get_time() >= trap_1_last_comm_micro_s + CONNECTION_TIMEOUT_MICRO_S) {
+            gpio_set_level(TRAP_1_CONNECTED_PIN, 0);
+        }
     }
 }
 
@@ -68,4 +84,6 @@ void app_main(void)
 {
     configure_pins();    // Set up GPIO
     init_esp_now();      // Initialize ESP-NOW
+    // Start connection watchdog
+    xTaskCreate(&connection_watchdog_task, "connection_watchdog_task", 2048, NULL, 5, NULL);
 }
