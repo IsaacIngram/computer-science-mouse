@@ -6,6 +6,7 @@
 #include "esp_netif.h"
 #include "esp_wifi.h"
 #include "nvs_flash.h"
+#include "esp_log.h"
 
 // Pin definitions
 #define HAMMER_SENSOR_PIN 23
@@ -14,6 +15,9 @@
 #define HAMMER_POLL_DELAY_MS 500
 
 uint8_t peer_mac[ESP_NOW_ETH_ALEN] = {0x94, 0xB5, 0x55, 0x8E, 0x2A, 0x20};
+
+static const char* TAG = "MyModule";
+
 
 /**
  * Configure pins
@@ -81,16 +85,21 @@ _Noreturn void check_hammer_task(void *pvParameters) {
     }
 }
 
-void init_esp_now() {
-    esp_err_t ret;
+
+void app_main(void)
+{
+    // Configure all GPIO pins
+    configure_pins();
+    ESP_LOGD(TAG, "GPIO Initialized");
 
     // Initialize NVS
+    esp_err_t ret;
     ret = nvs_flash_init();
     while (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         nvs_flash_erase();
         ret = nvs_flash_init();
     }
-    printf("Flash initialized");
+    ESP_LOGD(TAG, "Flash initialized");
 
     // Initialize Wi-Fi
     ESP_ERROR_CHECK(esp_netif_init());
@@ -99,20 +108,12 @@ void init_esp_now() {
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_start());
-    printf("WiFi initialized\n");
+    ESP_LOGD(TAG, "WFi Initialized");
 
     // Initialize ESP-NOW
     ESP_ERROR_CHECK(esp_now_init());
-}
-
-
-void app_main(void)
-{
-    // Configure all GPIO pins
-    configure_pins();
-
-    init_esp_now();
 
     // Start hammer task
     xTaskCreate(&check_hammer_task, "check_hammer_task", 2048, NULL, 5, NULL);
+    ESP_LOGD(TAG, "Created check_hammer_task task");
 }
