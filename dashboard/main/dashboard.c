@@ -1,3 +1,13 @@
+///////////////////////////////////////////////////////////////////////////////
+//
+// File: dashboard.c
+//
+// Author: Isaac Ingram
+//
+// Purpose: Control the LED dashboard for multiple mousetraps. Create a mesh
+// network with all traps via ESP-NOW.
+//
+///////////////////////////////////////////////////////////////////////////////
 #include <stdio.h>
 #include "driver/gpio.h"
 #include "esp_wifi.h"
@@ -17,6 +27,12 @@
 
 int64_t trap_1_last_comm_micro_s = 0;
 
+const char* TAG = "Dashboard";
+
+
+/**
+ * Configure GPIO pins
+ */
 void configure_pins() {
     gpio_config_t led_conf = {
             .intr_type = GPIO_INTR_DISABLE,
@@ -29,6 +45,12 @@ void configure_pins() {
 }
 
 
+/**
+ * Callback for when a message is received over ESP-NOW
+ * @param info
+ * @param data
+ * @param data_len
+ */
 void esp_now_recv_cb(const esp_now_recv_info_t *info, const uint8_t *data, int data_len) {
     if(data == NULL || data_len == 0) {
         // Empty data
@@ -43,6 +65,10 @@ void esp_now_recv_cb(const esp_now_recv_info_t *info, const uint8_t *data, int d
 }
 
 
+/**
+ * Task for connection watchdog. Note that this never returns.
+ * @param pvParameters
+ */
 _Noreturn void connection_watchdog_task(void *pvParameters) {
     while(1) {
         if(esp_timer_get_time() >= trap_1_last_comm_micro_s + CONNECTION_TIMEOUT_MICRO_S) {
@@ -52,16 +78,22 @@ _Noreturn void connection_watchdog_task(void *pvParameters) {
 }
 
 
-void init_esp_now() {
-    esp_err_t ret;
+/**
+ * Main function
+ */
+void app_main(void)
+{
+    configure_pins();    // Set up GPIO
+    ESP_LOGD(TAG, "GPIO Initialized");
 
     // Initialize NVS
+    esp_err_t ret;
     ret = nvs_flash_init();
     while (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         nvs_flash_erase();
         ret = nvs_flash_init();
     }
-    printf("Flash initialized");
+    ESP_LOGD(TAG, "Flash initialized");
 
     // Initialize Wi-Fi
     ESP_ERROR_CHECK(esp_netif_init());
@@ -70,20 +102,15 @@ void init_esp_now() {
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_start());
-    printf("WiFi initialized\n");
+    ESP_LOGD(TAG, "WiFi initialized");
 
     // Initialize ESP-NOW
     ESP_ERROR_CHECK(esp_now_init());
 
     // Register callback for receiving ESP-NOW data
     ESP_ERROR_CHECK(esp_now_register_recv_cb(esp_now_recv_cb));
-}
 
-
-void app_main(void)
-{
-    configure_pins();    // Set up GPIO
-    init_esp_now();      // Initialize ESP-NOW
     // Start connection watchdog
     xTaskCreate(&connection_watchdog_task, "connection_watchdog_task", 2048, NULL, 5, NULL);
+    ESP_LOGD(TAG, "Created connection_watchdog_task task");
 }
