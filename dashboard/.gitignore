@@ -1,0 +1,8 @@
+# MacOS
+.DS_Store
+
+# Common IDEs
+.idea
+
+# Secrets
+secrets.h
