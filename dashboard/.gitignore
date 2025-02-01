@@ -5,6 +5,6 @@
 .idea
 
 # Secrets
-*secrets.h
+main/secrets.h
 *.pem
 

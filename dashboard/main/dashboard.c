@@ -24,12 +24,7 @@
 #include "freertos/task.h"
 #include "esp_http_client.h"
 #include "secrets.h"
-#include "esp_spiffs.h"
 
-#define TRAP_1_CONNECTED_PIN 27
-#define TRAP_1_HAMMER_STATUS_PIN 33
-#define TRAP_2_CONNECTED_PIN 0
-#define TRAP_2_HAMMER_STATUS_PIN 0
 #define BUILT_IN_LED_PIN 2
 
 #define CONNECTION_TIMEOUT_MICRO_S 1000000
@@ -37,8 +32,6 @@
 int64_t trap_1_last_comm_micro_s = 0;
 
 const char* TAG = "Dashboard";
-char* cert_content = NULL;
-const char* twilio_cert_file_path = "/spiffs/twilio_cert.pem";
 
 /**
  * Configure GPIO pins
@@ -47,7 +40,7 @@ void configure_pins() {
     gpio_config_t led_conf = {
             .intr_type = GPIO_INTR_DISABLE,
             .mode = GPIO_MODE_OUTPUT,
-            .pin_bit_mask = (1ULL << TRAP_1_CONNECTED_PIN) | (1ULL << TRAP_1_HAMMER_STATUS_PIN),
+            .pin_bit_mask = 1ULL << BUILT_IN_LED_PIN,
             .pull_up_en = GPIO_PULLUP_DISABLE,
             .pull_down_en = GPIO_PULLDOWN_DISABLE
     };
@@ -97,7 +90,6 @@ void twilio_send_sms(void *pvParameters) {
             .url = twilio_url,
             .method = HTTP_METHOD_POST,
             .auth_type = HTTP_AUTH_TYPE_BASIC,
-            .cert_pem = cert_content
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);
     esp_http_client_set_header(client, "Content-Type", "application/x-www-form-urlencoded");
@@ -124,7 +116,6 @@ void twilio_send_sms(void *pvParameters) {
     // Cleanup
     esp_http_client_cleanup(client);
     free(params);
-    free(cert_content);
     vTaskDelete(NULL);
 }
 
@@ -140,12 +131,7 @@ void esp_now_recv_cb(const esp_now_recv_info_t *info, const uint8_t *data, int d
         // Empty data
         return;
     }
-    if(data_len == sizeof(bool)) {
-        gpio_set_level(TRAP_1_CONNECTED_PIN, 1);
-        bool hammer_down = *(bool *)data;
-        gpio_set_level(TRAP_1_HAMMER_STATUS_PIN, hammer_down ? 1 : 0);
-        trap_1_last_comm_micro_s = esp_timer_get_time();
-    }
+    // TODO implementing parsing ESP-NOW data
 }
 
 
@@ -155,66 +141,23 @@ void esp_now_recv_cb(const esp_now_recv_info_t *info, const uint8_t *data, int d
  */
 _Noreturn void connection_watchdog_task(void *pvParameters) {
     while(1) {
-        if(esp_timer_get_time() >= trap_1_last_comm_micro_s + CONNECTION_TIMEOUT_MICRO_S) {
-            gpio_set_level(TRAP_1_CONNECTED_PIN, 0);
-        }
+        // TODO implement connection watchdog task
     }
-}
-
-
-void read_cert_from_file(const char* file_path) {
-    FILE *file = fopen(file_path, "r");
-    if (file == NULL) {
-        ESP_LOGE(TAG, "Failed to open file for reading: %s", file_path);
-    }
-
-    fseek(file, 0, SEEK_END);
-    long fsize = ftell(file);
-    fseek(file, 0, SEEK_SET);
-
-    cert_content = malloc(fsize + 1);
-    if (cert_content == NULL) {
-        ESP_LOGE(TAG, "Memory allocation failed for certificate");
-        fclose(file);
-    }
-
-    fread(cert_content, 1, fsize, file);
-    cert_content[fsize] = '\0';  // Null terminate the string
-
-    fclose(file);
-}
-
-
-esp_err_t init_spiffs() {
-    esp_vfs_spiffs_conf_t conf = {
-            .base_path = "/spiffs",
-            .partition_label = NULL,
-            .max_files = 5,
-            .format_if_mount_failed = true
-    };
-    esp_err_t ret = esp_vfs_spiffs_register(&conf);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to mount SPIFFS filesystem (esp_err_t %d)", ret);
-    } else {
-        ESP_LOGI(TAG, "SPIFFS filesystem mounted");
-    }
-    return ESP_OK;
 }
 
 
 int retry_num = 0;
 static void wifi_event_handler(void * event_handler_arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
     if (event_id == WIFI_EVENT_STA_START) {
-        printf("Wifi connecting...\n");
+        ESP_LOGD(TAG, "Wifi connecting...");
     } else if (event_id == WIFI_EVENT_STA_CONNECTED) {
-        printf("Wifi connected\n");
+        ESP_LOGD(TAG, "Wifi connected");
         retry_num = 0;
         gpio_set_level(BUILT_IN_LED_PIN, 1);
-
     } else if(event_id == WIFI_EVENT_STA_DISCONNECTED) {
-        printf("Wifi lost connection\n");
+        ESP_LOGD(TAG, "Wifi lost connection.");
         esp_wifi_connect();
-        printf("Trying to reconnect... (%d)\n", retry_num);
+        ESP_LOGD(TAG, "Trying to reconnect... (%d)", retry_num);
         // Flash LED based on the retry number
         if(retry_num % 2 == 0) {
             gpio_set_level(BUILT_IN_LED_PIN, 0);
@@ -223,10 +166,10 @@ static void wifi_event_handler(void * event_handler_arg, esp_event_base_t event_
         }
         retry_num++;
     } else if (event_id == IP_EVENT_STA_GOT_IP) {
-        printf("Wifi got IP\n");
+        ESP_LOGD(TAG, "Wifi got IP. Ready to send messages!");
         SendSmsTaskParams *params = malloc(sizeof(SendSmsTaskParams));
         params->message = "Hello, world!";
-        params->recipient_number = RECEIVER_NUMBER;
+        params->recipient_number = RECIPIENT_NUMBERS;
         xTaskCreate(twilio_send_sms, "Twilio Send SMS", 4096, (void*)params, 5, NULL);
     }
 }
@@ -273,20 +216,6 @@ void app_main(void)
         ret = nvs_flash_init();
     }
     ESP_LOGD(TAG, "Flash initialized");
-
-    // Initialize SPIFFS
-    ret = init_spiffs();
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "SPIFFS initialization failed");
-        return;
-    }
-
-    // Read certificate from file
-    read_cert_from_file(twilio_cert_file_path);
-    if (cert_content == NULL) {
-        ESP_LOGE(TAG, "Failed to read certificate from file");
-        return;
-    }
 
     // Connect to Wifi
     wifi_connection(WIFI_SSID, WIFI_PASS);
