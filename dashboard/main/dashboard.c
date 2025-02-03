@@ -227,7 +227,7 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_now_register_recv_cb(esp_now_recv_cb));
 
     // Start connection watchdog
-    //xTaskCreate(&connection_watchdog_task, "connection_watchdog_task", 2048, NULL, 5, NULL);
+    xTaskCreate(&connection_watchdog_task, "connection_watchdog_task", 2048, NULL, 5, NULL);
     ESP_LOGD(TAG, "Created connection_watchdog_task task");
 
 
