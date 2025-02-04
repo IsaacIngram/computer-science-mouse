@@ -8,6 +8,8 @@ on:
       - main
     paths:
       - '**.py'
+      - 'server/requirements.txt'
+
 
 jobs:
   deploy:
@@ -40,6 +42,13 @@ jobs:
         aws s3 cp s3://$S3_BUCKET/$S3_KEY existing_lambda.zip
         # Unzip the existing package
         unzip existing_lambda.zip -d lambda_env
+
+        # Install dependencies inside lambda_env/server/
+        if [ -f server/requirements.txt ]; then
+            echo "Installing dependencies from requirements.txt..."
+            pip install -r server/requirements.txt -t lambda_env/server/
+        fi
+        
         # Copy only the modified .py files from the commit into the unzipped directory
         # This will maintain their directory structure.
         for file in $(git diff-tree --no-commit-id --name-only -r HEAD); do
