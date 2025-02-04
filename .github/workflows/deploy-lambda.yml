@@ -44,9 +44,9 @@ jobs:
         unzip existing_lambda.zip -d lambda_env
 
         # Install dependencies inside lambda_env/server/
-        if [ -f server/requirements.txt ]; then
+        if [ -f requirements.txt ]; then
             echo "Installing dependencies from requirements.txt..."
-            pip install -r server/requirements.txt -t lambda_env/server/
+            pip install -r requirements.txt -t lambda_env/
         fi
         
         # Copy only the modified .py files from the commit into the unzipped directory
