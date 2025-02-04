@@ -1,9 +1,15 @@
 # Computer Science Mouse
 A software-based solution to your mouse problems, Computer Science Mouse is a smart, IoT enabled mousetrap.
 
+## Components:
+This project has 3 components:
+- trap: This is where the software for each mousetrap lives. By itself, the trap is not connected to the internet. Instead, it creates a local mesh network with the trap hub to facilitate internet connection. This makes the traps robust for areas with little to no access to internet, while significantly reducing the amount of power each trap consumes.
+- trap hub (dashboard): This is the device that all of the traps communicate with. It checks the heartbeat, battery level, and whether a mouse has been caught in each of the traps. It displays this information on a local dashboard, as well as queues it to send to the server whenever internet becomes available.
+- server: This runs in AWS Lambda, and it facilitates the connection between each trap hub and the rest of the world. It will determine who needs to be notified and then push notifications to those users through Twilio.
+
 # Local Setup
 ## 1. Download and Install ESP-IDF
-This project is built using ESP-IDF, and you will need that installed on your system before you can proceed.
+This project is built using [ESP-IDF](https://github.com/espressif/esp-idf), and you will need that installed on your system before you can proceed.
 
 ## 2. Activate Your ESP-IDF Build Environment
 ```
