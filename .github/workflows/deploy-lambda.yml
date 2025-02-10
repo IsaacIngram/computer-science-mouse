@@ -37,7 +37,7 @@ jobs:
         # Constants
         S3_BUCKET=computer-science-mouse-lambda-deploy
         S3_KEY=computer-science-mouse-server-deploy.zip
-        LAMBDA_FUNCTION_NAME=sendSmsViaTwilio
+        LAMBDA_FUNCTION_NAME=updateTrapStatus
         # Download the existing zip from S3
         aws s3 cp s3://$S3_BUCKET/$S3_KEY existing_lambda.zip
         # Unzip the existing package
