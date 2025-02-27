@@ -107,7 +107,7 @@ def lambda_handler(event, context):
 
         if old_trap_data is not None:
 
-            trap_name = old_trap_data['name']
+            trap_name = old_trap_data.get('name', 'Unnamed')
 
             # Process deltas from previous data to send messages
             if hammer_down and not old_trap_data['hammer_down']:
@@ -130,7 +130,7 @@ def lambda_handler(event, context):
     # Iterate through all messages to send
     for trap_data, message in messages_to_send:
         # Iterate through all phone numbers for each message
-        for phone_number in trap_data['resident_phone_numbers']:
+        for phone_number in trap_data.get('resident_phone_numbers', set()):
             # Send the message
             send_sms_via_twilio(phone_number, message)
 
