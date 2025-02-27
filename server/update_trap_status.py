@@ -116,20 +116,21 @@ def lambda_handler(event, context):
 
         if old_trap_data is not None:
 
+            # Get data from old database information
             trap_name = old_trap_data.get('name', 'Unnamed')
             phone_numbers = old_trap_data.get('resident_phone_numbers', set())
-            print(phone_numbers)
+            old_battery_level = old_trap_data.get('battery_level', 100)
 
             # Process deltas from previous data to send messages
             if hammer_down and not old_trap_data['hammer_down']:
                 # Hammer has gone down
-                print("Added hammer down message")
                 messages_to_send.append((phone_numbers, f"{trap_name} trap triggered"))
+                print(f"New message to send for trap '{trap_id}': Hammer switched to down")
 
-            if battery_level <= LOW_BATTERY_LEVEL < old_trap_data['battery_level']:
+            if battery_level <= LOW_BATTERY_LEVEL < old_battery_level:
                 # Battery has fallen below low battery level
                 messages_to_send.append((phone_numbers, f"{trap_name} battery level low"))
-                pass
+                print(f"New message to send for trap '{trap_id}': Battery level low")
 
             # Update trap in DB with new data
             update_trap(trap_id, hammer_status=hammer_down, battery_percent=battery_level)
