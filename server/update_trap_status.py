@@ -1,3 +1,12 @@
+###############################################################################
+#
+# File: update_trap_satus.py
+#
+# Author: Isaac Ingram
+#
+# Purpose: Provide function for AWS Lambda to handle trap status updates.
+#
+###############################################################################
 import os
 from twilio.rest import Client
 import boto3
