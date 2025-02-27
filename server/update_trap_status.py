@@ -103,6 +103,7 @@ def lambda_handler(event, context):
 
     messages_to_send = list()
 
+    print("Compiling messages...")
     # Iterate through all traps data was sent for
     for trap_id in event['traps']:
 
@@ -140,12 +141,12 @@ def lambda_handler(event, context):
             pass
 
 
+    print("Sending messages...")
     # Iterate through all messages to send
     for phone_numbers, message in messages_to_send:
         # Iterate through all phone numbers for each message
-        if len(phone_numbers) == 0:
-            print("Phone numbers list size 0")
         for phone_number in phone_numbers:
             # Send the message
+            print(f"Sent to {phone_number}: {message}")
             send_sms_via_twilio(phone_number, message)
 
