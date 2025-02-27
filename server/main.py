@@ -112,6 +112,7 @@ def lambda_handler(event, context):
             # Process deltas from previous data to send messages
             if hammer_down and not old_trap_data['hammer_down']:
                 # Hammer has gone down
+                print("Added hammer down message")
                 messages_to_send.append((trap_data, f"{trap_name} trap triggered"))
 
             if battery_level <= LOW_BATTERY_LEVEL < old_trap_data['battery_level']:
@@ -130,7 +131,10 @@ def lambda_handler(event, context):
     # Iterate through all messages to send
     for trap_data, message in messages_to_send:
         # Iterate through all phone numbers for each message
-        for phone_number in trap_data.get('resident_phone_numbers', set()):
+        phone_numbers = trap_data.get('resident_phone_numbers', set())
+        if len(phone_numbers) == 0:
+            print("Phone numbers list size 0")
+        for phone_number in phone_numbers:
             # Send the message
             send_sms_via_twilio(phone_number, message)
 
