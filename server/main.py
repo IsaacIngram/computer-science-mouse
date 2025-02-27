@@ -31,7 +31,7 @@ def send_sms_via_twilio(destination: str, message: str):
     client = Client(account_sid, auth_token)
 
     message = client.messages.create(
-        body=f"{message}",
+        body=f"CS Mouse: {message}",
         from_=f"{from_number}",
         to=f"{destination}"
     )
