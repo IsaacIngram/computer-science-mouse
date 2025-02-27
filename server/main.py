@@ -109,6 +109,7 @@ def lambda_handler(event, context):
 
             trap_name = old_trap_data.get('name', 'Unnamed')
             phone_numbers = old_trap_data.get('resident_phone_numbers', set())
+            print(phone_numbers)
 
             # Process deltas from previous data to send messages
             if hammer_down and not old_trap_data['hammer_down']:
