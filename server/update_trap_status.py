@@ -13,7 +13,7 @@ import boto3
 from boto3.dynamodb.conditions import Key
 from typing import List, Union
 
-LOW_BATTERY_LEVEL = 0.1 # Battery alert level
+LOW_BATTERY_LEVEL = 10 # Battery alert level
 
 dynamodb = boto3.resource('dynamodb')
 
