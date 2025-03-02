@@ -62,7 +62,7 @@ def is_phone_number_registered(phone_number: str) -> bool:
     :param phone_number:
     :return:
     """
-    response = registered_users_table.get_item(phone_number)
+    response = registered_users_table.get_item(Key={"phone_number": phone_number})
     return response.get("Item", False)
 
 
