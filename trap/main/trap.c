@@ -8,13 +8,13 @@
 #include "esp_sleep.h"
 
 // Pin definitions
-#define HAMMER_SENSOR_PIN 23
+#define HAMMER_SENSOR_PIN 33
 #define LED_PIN 2
 
-#define STATUS_UPDATE_DELAY_US 900000000
+#define STATUS_UPDATE_DELAY_US 2000000 // 900000000
 
 
-uint8_t peer_mac[ESP_NOW_ETH_ALEN] = {0x94, 0xB5, 0x55, 0x8E, 0x2A, 0x20};
+uint8_t peer_mac[ESP_NOW_ETH_ALEN] = {0x94, 0xB5, 0x55, 0x8E, 0x2A, 0x21};
 
 static const char* TAG = "Trap";
 
@@ -41,7 +41,7 @@ void configure_pins() {
             .pull_up_en = GPIO_PULLUP_DISABLE
     };
     gpio_config(&led_pin_conf);
-    ESP_LOGD(TAG, "Configured GPIO");
+    ESP_LOGI(TAG, "Configured GPIO");
 }
 
 
@@ -64,7 +64,7 @@ void init_nvs() {
         nvs_flash_erase();
         ret = nvs_flash_init();
     }
-    ESP_LOGD(TAG, "Flash initialized");
+    ESP_LOGI(TAG, "Flash initialized");
 }
 
 
@@ -76,7 +76,7 @@ void init_wifi() {
     if (esp_wifi_init(&cfg) != ESP_OK || esp_wifi_set_mode(WIFI_MODE_STA) != ESP_OK || esp_wifi_start() != ESP_OK || esp_now_init() != ESP_OK) {
         ESP_LOGE(TAG, "Failed to initialize Wifi or ESP-NOW.");
     } else {
-        ESP_LOGD(TAG, "Wifi and ESP-NOW initialized");
+        ESP_LOGI(TAG, "Wifi and ESP-NOW initialized");
     }
 }
 
@@ -92,7 +92,7 @@ void enter_deep_sleep() {
     if (!is_hammer_down()) {
         esp_sleep_enable_ext0_wakeup(HAMMER_SENSOR_PIN, 1);
     }
-    ESP_LOGD(TAG, "Entering deep sleep");
+    ESP_LOGI(TAG, "Entering deep sleep");
     esp_deep_sleep_start();
 }
 
@@ -102,7 +102,8 @@ void enter_deep_sleep() {
  * deep sleep. This includes GPIO, NVS, WiFi, and ESP-NOW.
  */
 void init_all_after_wake() {
-    ESP_LOGD(TAG, "Waking from sleep");
+    ESP_LOGI(TAG, "Waking from sleep");
+    esp_event_loop_create_default();
     // Configure GPIO pins
     configure_pins();
 
@@ -131,30 +132,7 @@ void send_status_esp_now(bool status) {
         esp_now_add_peer(&peer_info);
     }
     esp_now_send(peer_mac, (uint8_t*)&status, sizeof(status));
-    ESP_LOGD(TAG, "Sent status over ESP-NOW");
-}
-
-
-/**
- * Main task to send the status over ESP-NOW. Runs forever, sending status and
- * then entering deep sleep. It wakes from deep sleep and sends a status update
- * after the hammer switches to the "down" position or a 15 minute timer
- * expires.
- * @param pvParameters
- */
-_Noreturn void send_status_task(void *pvParameters) {
-    while(1) {
-        if (is_hammer_down()) {
-            gpio_set_level(LED_PIN, 1);
-            send_status_esp_now(true);
-        } else {
-            gpio_set_level(LED_PIN, 0);
-            send_status_esp_now(false);
-        }
-        enter_deep_sleep();
-        // After waking up:
-        init_all_after_wake();
-    }
+    ESP_LOGI(TAG, "Sent status over ESP-NOW");
 }
 
 
@@ -162,8 +140,16 @@ void app_main(void)
 {
     // Initialize everything
     init_all_after_wake();
+    ESP_LOGI(TAG, "Delay finished");
+    if (is_hammer_down()) {
+        ESP_LOGI(TAG, "Hammer down");
+        gpio_set_level(LED_PIN, 1);
+        send_status_esp_now(true);
+    } else {
+        ESP_LOGI(TAG, "Hammer up");
+        gpio_set_level(LED_PIN, 0);
+        send_status_esp_now(false);
+    }
+    enter_deep_sleep();
 
-    // Start status tasks
-    xTaskCreate(&send_status_task, "send_status_task", 2048, NULL, 5, NULL);
-    ESP_LOGD(TAG, "Created send_status_task task");
 }
