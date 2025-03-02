@@ -17,11 +17,8 @@ LOW_BATTERY_LEVEL = 10 # Battery alert level
 
 dynamodb = boto3.resource('dynamodb')
 
-homes_table: dynamodb.Table = dynamodb.Table('cs-mouse-homes')
-residents_table: dynamodb.Table = dynamodb.Table('cs-mouse-residents')
 traps_table: dynamodb.Table = dynamodb.Table('cs-mouse-traps')
-traps_to_homes_table: dynamodb.Table = dynamodb.Table('cs-mouse-traps-to-homes')
-homes_to_residents_table: dynamodb.Table = dynamodb.Table('cs-mouse-homes-to-residents')
+registered_users_table: dynamodb.Table = dynamodb.Table('cs-mouse-registered-users')
 
 def send_sms_via_twilio(destination: str, message: str):
     """
@@ -57,6 +54,16 @@ def get_trap_data_by_id(trap_id):
     """
     response = traps_table.get_item(Key={"trap_id": trap_id})
     return response.get("Item", None)
+
+
+def is_phone_number_registered(phone_number: str) -> bool:
+    """
+    Get whether a phone number is registered to be used with the app.
+    :param phone_number:
+    :return:
+    """
+    response = registered_users_table.get_item(phone_number)
+    return response.get("Item", False)
 
 
 def update_trap(trap_id, hammer_status: Union[bool, None] = None, battery_percent: Union[float, None] = None):
@@ -146,7 +153,8 @@ def lambda_handler(event, context):
     for phone_numbers, message in messages_to_send:
         # Iterate through all phone numbers for each message
         for phone_number in phone_numbers:
-            # Send the message
-            print(f"Sent to {phone_number}: {message}")
-            send_sms_via_twilio(phone_number, message)
+            if is_phone_number_registered(phone_number):
+                # Send the message
+                print(f"Sent to {phone_number}: {message}")
+                send_sms_via_twilio(phone_number, message)
 
