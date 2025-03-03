@@ -7,8 +7,7 @@
 # Purpose: Provide function for AWS Lambda to handle trap status updates.
 #
 ###############################################################################
-import database
-import twilio_interface
+from lib import twilio_interface, database
 
 LOW_BATTERY_LEVEL = 10 # Battery alert level
 
