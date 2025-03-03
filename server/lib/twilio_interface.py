@@ -9,7 +9,7 @@
 ###############################################################################
 import os
 from twilio.rest import Client
-from . import database
+from lib import database
 
 
 def send_sms(destination: str, message: str):
