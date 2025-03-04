@@ -169,3 +169,8 @@ def lambda_handler(event, context):
             print(f"Sent to {phone_number}: {message}")
             send_sms(phone_number, message)
 
+    return {
+        'statusCode': 200,
+        'body': ''
+    }
+
