@@ -72,24 +72,26 @@ def lambda_handler(event, context):
 
 
         # Check contents of received message to determine what action to take
-        if message_body.lower() == 'register':
-            # Received registration message. Check if user is already registered.
-            if is_phone_number_registered(from_number):
-                return {
-                    "statusCode": 409,
-                    "body": f"CS Mouse: You are already registered."
-                }
-            else:
-                # Add this user to registered users
-                registered_users_table.put_item(
-                    Item={
-                        'phone_number': from_number,
+        match message_body.lower():
+            case 'register':
+                # Received registration message. Check if user is already registered.
+                if is_phone_number_registered(from_number):
+                    return {
+                        "statusCode": 409,
+                        "body": f"CS Mouse: You are already registered."
                     }
-                )
-                return {
-                    "statusCode": 200,
-                    "body": f"CS Mouse: You will now receive notifications through CS Mouse. You can stop messages at any time by replying 'STOP'."
-                }
+                else:
+                    # Add this user to registered users
+                    registered_users_table.put_item(
+                        Item={
+                            'phone_number': from_number,
+                        }
+                    )
+                    return {
+                        "statusCode": 200,
+                        "body": f"CS Mouse: You will now receive notifications through CS Mouse. You can stop messages at any time by replying 'STOP'."
+                    }
+
 
     except Exception as e:
         # Return internal server error
