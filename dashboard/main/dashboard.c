@@ -47,78 +47,6 @@ void configure_pins() {
     gpio_config(&led_conf);
 }
 
-typedef struct {
-    char *message;
-    char *recipient_number;
-} SendSmsTaskParams;
-
-
-void twilio_send_sms(void *pvParameters) {
-
-    SendSmsTaskParams *params = (SendSmsTaskParams*)pvParameters;
-
-    char *message = params->message;
-    char *recipient_number = params->recipient_number;
-
-    // Create twilio URL
-    char twilio_url[200];
-    snprintf(
-            twilio_url,
-            sizeof(twilio_url),
-            "%s%s%s",
-            "https://api.twilio.com/2010-04-01/Accounts/",
-            TWILIO_ACCOUNT_SID,
-            "/Messages"
-            );
-
-    // Create data packet
-    char post_data[200];
-    snprintf(
-            post_data,
-            sizeof(post_data),
-            "%s%s%s%s%s%s",
-            "To=",
-            recipient_number,
-            "&From=",
-            SENDER_NUMBER,
-            "&Body=",
-            message
-            );
-
-    // Configure HTTP client
-    esp_http_client_config_t config = {
-            .url = twilio_url,
-            .method = HTTP_METHOD_POST,
-            .auth_type = HTTP_AUTH_TYPE_BASIC,
-    };
-    esp_http_client_handle_t client = esp_http_client_init(&config);
-    esp_http_client_set_header(client, "Content-Type", "application/x-www-form-urlencoded");
-    esp_http_client_set_username(client, TWILIO_ACCOUNT_SID);
-    esp_http_client_set_password(client, TWILIO_AUTH_TOKEN);
-
-    // Send the message
-    ESP_LOGI(TAG, "post=%s", post_data);
-    esp_http_client_set_post_field(client, post_data, strlen(post_data));
-    esp_err_t err = esp_http_client_perform(client);
-
-    // Check for errors
-    if (err == ESP_OK) {
-        int status_code = esp_http_client_get_status_code(client);
-        if (status_code == 201) {
-            ESP_LOGI(TAG, "Twilio message sent successfully");
-        } else {
-            ESP_LOGI(TAG, "Twilio message send failure");
-        }
-    } else {
-        ESP_LOGI(TAG, "Twilio message failed to send (ESP issue)");
-    }
-
-    // Cleanup
-    esp_http_client_cleanup(client);
-    free(params);
-    vTaskDelete(NULL);
-}
-
 
 /**
  * Callback for when a message is received over ESP-NOW
@@ -167,10 +95,6 @@ static void wifi_event_handler(void * event_handler_arg, esp_event_base_t event_
         retry_num++;
     } else if (event_id == IP_EVENT_STA_GOT_IP) {
         ESP_LOGD(TAG, "Wifi got IP. Ready to send messages!");
-        SendSmsTaskParams *params = malloc(sizeof(SendSmsTaskParams));
-        params->message = "Hello, world!";
-        params->recipient_number = RECIPIENT_NUMBERS;
-        xTaskCreate(twilio_send_sms, "Twilio Send SMS", 4096, (void*)params, 5, NULL);
     }
 }
 
