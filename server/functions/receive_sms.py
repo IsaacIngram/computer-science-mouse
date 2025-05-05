@@ -11,28 +11,11 @@
 import base64
 import urllib.parse
 import os
-import boto3
 from twilio.request_validator import RequestValidator
-
-dynamodb = boto3.resource('dynamodb')
-registered_users_table = dynamodb.Table('cs-mouse-registered-users')
+from common import database as db
 
 # Load twilio auth token from environment
 auth_token = os.getenv("TWILIO_AUTH_TOKEN")
-
-def is_phone_number_registered(phone_number: str) -> bool:
-    """
-    Get whether a phone number is registered to be used with the app.
-    :param phone_number: String phone number. Includes country code (eg. +1 for US) and no dashes.
-    :return: True if the item is registered, False otherwise.
-    """
-    response = registered_users_table.get_item(Key={"phone_number": phone_number})
-    exists = response.get("Item", False)
-    if exists is False:
-        return False
-    else:
-        return True
-
 
 def lambda_handler(event, context):
 
@@ -75,18 +58,13 @@ def lambda_handler(event, context):
         match message_body.lower():
             case 'register':
                 # Received registration message. Check if user is already registered.
-                if is_phone_number_registered(from_number):
+                if db.is_phone_number_registered(from_number):
                     return {
                         "statusCode": 409,
                         "body": f"CS Mouse: You are already registered."
                     }
                 else:
-                    # Add this user to registered users
-                    registered_users_table.put_item(
-                        Item={
-                            'phone_number': from_number,
-                        }
-                    )
+                    db.register_phone_number(from_number)
                     return {
                         "statusCode": 200,
                         "body": f"CS Mouse: You will now receive notifications through CS Mouse. You can stop messages at any time by replying 'STOP'."

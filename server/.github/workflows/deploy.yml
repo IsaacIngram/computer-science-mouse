@@ -1,0 +1,89 @@
+name: Deploy Lambda Functions
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'server/**'
+  workflow_dispatch:  # Allow manual triggering
+
+env:
+  AWS_REGION: us-east-1  # Change to your region
+  S3_BUCKET: your-lambda-deployment-bucket  # Change to your bucket name
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+          pip install aws-sam-cli
+
+      - name: Run tests
+        run: |
+          pytest -xvs tests/
+
+      - name: Package and deploy Lambda functions
+        run: |
+          # Create a directory for the deployment packages
+          mkdir -p deployment_packages
+          
+          # Find all Lambda function directories
+          function_dirs=$(find functions -mindepth 1 -maxdepth 1 -type d)
+          
+          # Package and deploy each function
+          for func_dir in $function_dirs; do
+            func_name=$(basename $func_dir)
+            echo "Packaging $func_name..."
+            
+            # Create a temporary directory for packaging
+            mkdir -p package/$func_name
+            
+            # Copy the function code
+            cp -r $func_dir/* package/$func_name/
+            
+            # Copy the common code
+            cp -r common package/$func_name/
+            
+            # Install dependencies into package directory
+            pip install -r requirements.txt -t package/$func_name/
+            
+            # Create the deployment ZIP
+            cd package/$func_name
+            zip -r ../../deployment_packages/$func_name.zip .
+            cd ../../
+            
+            # Upload to S3
+            aws s3 cp deployment_packages/$func_name.zip s3://$S3_BUCKET/
+            
+            # Update the Lambda function
+            aws lambda update-function-code \
+              --function-name $func_name \
+              --s3-bucket $S3_BUCKET \
+              --s3-key $func_name.zip
+              
+            echo "$func_name deployed successfully!"
+          done
