@@ -9,7 +9,7 @@ on:
   workflow_dispatch:  # Allow manual triggering
 
 env:
-  AWS_REGION: us-east-1  # Change to your region
+  AWS_REGION: ${{ secrets.AWS_REGION }}  # Change to your region
   S3_BUCKET: ${{ secrets.AWS_BUCKET }}  # Change to your bucket name
 
 jobs:
