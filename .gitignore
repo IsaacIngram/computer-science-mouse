@@ -1,6 +1,8 @@
 # Operating systems
 .DS_Store
 
+**.venv/
+**venv/
 # Build
 /trap/build
 /trap/cmake-build-debug
