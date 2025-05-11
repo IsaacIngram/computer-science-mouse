@@ -10,7 +10,7 @@ on:
 
 env:
   AWS_REGION: us-east-1  # Change to your region
-  S3_BUCKET: your-lambda-deployment-bucket  # Change to your bucket name
+  S3_BUCKET: ${{ secrets.AWS_BUCKET }}  # Change to your bucket name
 
 jobs:
   deploy:
