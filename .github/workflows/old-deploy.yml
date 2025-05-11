@@ -1,6 +1,6 @@
 # Credit to Ivan Gomez Arnedo for putting this action together.
 # https://medium.com/@ivangomezarnedo/automating-aws-lambda-deployments-with-github-actions-cc632138d069
-name: Deploy Python Lambda
+name: OLD: Deploy Python Lambda
 
 on:
   push:
