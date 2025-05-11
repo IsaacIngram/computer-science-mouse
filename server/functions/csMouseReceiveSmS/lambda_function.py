@@ -1,6 +1,6 @@
 ###############################################################################
 #
-# File: receive_sms.py
+# File: lambda_function.py
 #
 # Author: Isaac Ingram
 #
