@@ -99,7 +99,7 @@ def lambda_handler(event, context):
                     return {
                         "statusCode": 200,
                         "headers": {
-                            "Content-Type": "text/json"
+                            "Content-Type": "application/xml"
                         },
                         "body": ms.build_twiml_message_response("CS Mouse: You will now receive notifications through CS Mouse. You can stop messages at any time by replying 'STOP'.")
                     }
