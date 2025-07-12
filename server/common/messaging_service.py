@@ -7,15 +7,23 @@
 # Purpose:
 #
 ###############################################################################
-
-from database import is_phone_number_registered
+from common.database import is_phone_number_registered
 from twilio.rest import Client
 from os import environ
+from xml.etree.ElementTree import Element, tostring
 
 
 TWILIO_ACCOUNT_SID = environ.get('TWILIO_ACCOUNT_SID')
 TWILIO_AUTH_TOKEN = environ.get('TWILIO_AUTH_TOKEN')
 TWILIO_FROM_NUMBER = environ.get('TWILIO_FROM_NUMBER')
+
+
+def build_twiml_message_response(message: str) -> str:
+    response = Element("Response")
+    msg = Element("Message")
+    msg.text = message
+    response.append(msg)
+    return tostring(response, encoding="utf-8", method="xml").decode()
 
 
 def send_sms(phone_number: str, message: str) -> str:

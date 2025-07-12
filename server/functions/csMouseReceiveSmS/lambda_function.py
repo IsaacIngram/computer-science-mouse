@@ -13,16 +13,32 @@ import urllib.parse
 import os
 from twilio.request_validator import RequestValidator
 from common import database as db
+from common import messaging_service as ms
+import json
 
 # Load twilio auth token from environment
-auth_token = os.getenv("TWILIO_AUTH_TOKEN")
+auth_token = os.getenv("TWILIO_AUTH_TOKEN", None)
+
 
 def lambda_handler(event, context):
+    print(json.dumps(event, indent=2))
+
+    if auth_token is None:
+        print("TWILIO_AUTH_TOKEN not set!")
+        return {
+            "statusCode": 500,
+            "headers": {
+                "Content-Type": "text/json"
+            },
+            "body": "Internal error, please see logs."
+        }
 
     try:
         # Extract headers from request
         headers = event.get("headers", {})
-        twilio_signature = headers.get("x-twilio-signature", "")
+        twilio_signature = headers.get("X-Twilio-Signature") or ""
+        if not twilio_signature:
+            print("Warning: x-twilio-signature is missing or empty!")
 
         # Extract body, which might be base 64 encoded
         if event.get("isBase64Encoded"):
@@ -43,40 +59,68 @@ def lambda_handler(event, context):
         print(f"Received message from {from_number}: {message_body}")
 
         # Construct URL for Twilio request validation
-        twilio_url = f"https://{headers.get('host', '')}{event.get('requestContext', {}).get('http', {}).get('path', '')}"
+        twilio_url = f"https://{headers.get('Host', '')}{event.get('requestContext', {}).get('path', '')}"
+
+        print(f"Constructed URL for validation: {twilio_url}")
 
         # Validate Twilio request signature
+        print("Doing request validator...")
         validator = RequestValidator(auth_token)
+        print("Did request validator...")
         if not validator.validate(twilio_url, parsed_body, twilio_signature):
             print("Invalid Twilio request")
-            return {"statusCode": 403, "body": "Forbidden"}
+            return {
+                "statusCode": 403,
+                "headers": {
+                    "Content-Type": "text/json"
+                },
+                "body": "Forbidden"
+            }
         else:
             print("Valid Twilio request")
-
 
         # Check contents of received message to determine what action to take
         match message_body.lower():
             case 'register':
                 # Received registration message. Check if user is already registered.
                 if db.is_phone_number_registered(from_number):
+                    print("User already registered")
                     return {
-                        "statusCode": 409,
-                        "body": f"CS Mouse: You are already registered."
+                        "statusCode": 200,
+                        "headers": {
+                            "Content-Type": "application/xml"
+                        },
+                        "body": ms.build_twiml_message_response("CS Mouse: You are already registered.")
                     }
+
                 else:
+                    print("New user registered")
                     db.register_phone_number(from_number)
                     return {
                         "statusCode": 200,
-                        "body": f"CS Mouse: You will now receive notifications through CS Mouse. You can stop messages at any time by replying 'STOP'."
+                        "headers": {
+                            "Content-Type": "text/json"
+                        },
+                        "body": ms.build_twiml_message_response("CS Mouse: You will now receive notifications through CS Mouse. You can stop messages at any time by replying 'STOP'.")
                     }
 
 
     except Exception as e:
         # Return internal server error
+        print(f"Exception caught: {e}")
         return {
-            "statusCode": 500
+            "statusCode": 500,
+            "headers": {
+                "Content-Type": "text/json"
+            },
+            "body": "Internal error, please see logs."
         }
     # Everything ran and no response was generated
+    print("No response generated")
     return {
-        "statusCode": 200
+        "statusCode": 200,
+        "headers": {
+            "Content-Type": "text/json"
+        },
+        "body": "OK"
     }
